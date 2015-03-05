@@ -27,14 +27,17 @@ import org.apache.poi.util.Beta;
 @Beta
 public interface ChartDataFactory {
 
-	/**
-	 * @return an appropriate ScatterChartData instance
-	 */
-	ScatterChartData createScatterChartData();
+    /**
+     * @return an appropriate ScatterChartData instance
+     */
+    ScatterChartData createScatterChartData();
 
-	/**
-	 * @return a LineChartData instance
-	 */
-	LineChartData createLineChartData();
+    /**
+     * @return a LineChartData instance
+     */
+    LineChartData createLineChartData();
 
+    IPieChart createPieChart();
+
+    IBarChart createBarChart();
 }

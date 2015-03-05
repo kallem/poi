@@ -26,34 +26,42 @@ import org.apache.poi.util.Beta;
 @Beta
 public class XSSFChartDataFactory implements ChartDataFactory {
 
-	private static XSSFChartDataFactory instance;
+    private static XSSFChartDataFactory instance;
 
-	private XSSFChartDataFactory() {
-		super();
-	}
+    private XSSFChartDataFactory() {
+        super();
+    }
 
-	/**
-	 * @return new scatter charts data instance
-	 */
-	public XSSFScatterChartData createScatterChartData() {
-		return new XSSFScatterChartData();
-	}
+    /**
+     * @return new scatter charts data instance
+     */
+    public XSSFScatterChartData createScatterChartData() {
+        return new XSSFScatterChartData();
+    }
 
-	/**
-	 * @return new line charts data instance
-	 */
-	public XSSFLineChartData createLineChartData() {
-		return new XSSFLineChartData();
-	}
+    /**
+     * @return new line charts data instance
+     */
+    public XSSFLineChartData createLineChartData() {
+        return new XSSFLineChartData();
+    }
 
-	/**
-	 * @return factory instance
-	 */
-	public static XSSFChartDataFactory getInstance() {
-		if (instance == null) {
-			instance = new XSSFChartDataFactory();
-		}
-		return instance;
-	}
+    public IPieChart createPieChart() {
+        return new XSSFPieChart();
+    }
+
+    public IBarChart createBarChart() {
+        return new XSSFBarChart();
+    }
+
+    /**
+     * @return factory instance
+     */
+    public static XSSFChartDataFactory getInstance() {
+        if (instance == null) {
+            instance = new XSSFChartDataFactory();
+        }
+        return instance;
+    }
 
 }

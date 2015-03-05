@@ -148,6 +148,9 @@ public class XSLFSlideLayout extends XSLFSheet {
                     default:
                         slide.getSpTree().addNewSp().set(tsh.getXmlObject().copy());
                 }
+            } else if (sh instanceof XSLFGraphicFrame) {
+                final XSLFGraphicFrame frame = (XSLFGraphicFrame) sh;
+                slide.getSpTree().addNewGraphicFrame().set(frame.getXmlObject().copy());
             }
         }
     }

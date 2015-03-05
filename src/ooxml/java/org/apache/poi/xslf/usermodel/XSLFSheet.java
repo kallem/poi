@@ -18,36 +18,27 @@ package org.apache.poi.xslf.usermodel;
 
 import org.apache.poi.POIXMLDocumentPart;
 import org.apache.poi.POIXMLException;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.openxml4j.opc.PackagePart;
 import org.apache.poi.openxml4j.opc.PackageRelationship;
 import org.apache.poi.openxml4j.opc.TargetMode;
-import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.util.Beta;
 import org.apache.poi.util.IOUtils;
 import org.apache.poi.util.Internal;
 import org.apache.xmlbeans.XmlObject;
 import org.apache.xmlbeans.XmlOptions;
 import org.openxmlformats.schemas.officeDocument.x2006.relationships.STRelationshipId;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTCommonSlideData;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTConnector;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTGraphicalObjectFrame;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTGroupShape;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTPicture;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTPlaceholder;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTShape;
+import org.openxmlformats.schemas.presentationml.x2006.main.*;
 
 import javax.xml.namespace.QName;
-import java.awt.Graphics2D;
+import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Pattern;
 
 @Beta
@@ -59,7 +50,7 @@ public abstract class XSLFSheet extends POIXMLDocumentPart implements XSLFShapeC
 
     private List<XSLFTextShape>_placeholders;
     private Map<Integer, XSLFSimpleShape> _placeholderByIdMap;
-    private Map<Integer, XSLFSimpleShape> _placeholderByTypeMap;
+    private Map<Integer, List<XSLFSimpleShape>> _placeholderByTypeMap;
 
     public XSLFSheet() {
         super();
@@ -127,6 +118,20 @@ public abstract class XSLFSheet extends POIXMLDocumentPart implements XSLFShapeC
             _drawing = new XSLFDrawing(this, getSpTree());
         }
         return _drawing;
+    }
+
+    public void setBackroundImage(int pictureIndex) {
+        final List<PackagePart> pics = getPackagePart().getPackage().getPartsByName(Pattern.compile("/ppt/media/image" + (pictureIndex + 1) + ".*?"));
+        if (pics.size() == 0) {
+            throw new IllegalArgumentException("Picture with index=" + pictureIndex + " was not found");
+        }
+
+        PackagePart pic = pics.get(0);
+
+        final PackageRelationship rel = getPackagePart().addRelationship(pic.getPartName(), TargetMode.INTERNAL, XSLFRelation.IMAGES.getRelation());
+        addRelation(rel.getId(), new XSLFPictureData(pic, rel));
+
+        getBackground().setImage(rel.getId());
     }
 
     private List<XSLFShape> getShapeList(){
@@ -199,6 +204,54 @@ public abstract class XSLFSheet extends POIXMLDocumentPart implements XSLFShapeC
         XSLFTable sh = getDrawing().createTable();
         shapes.add(sh);
         return sh;
+    }
+
+    public XSLFTable createTable(final XSLFSimpleShape placeholder){
+        List<XSLFShape> shapes = getShapeList();
+        XSLFTable sh = getDrawing().createTable();
+        applyPlaceholder(sh, placeholder);
+        shapes.add(sh);
+        return sh;
+    }
+
+    public XSLFChartFrame createChart() {
+        final List<XSLFShape> shapes = getShapeList();
+        final XSLFChartFrame chartFrame = getDrawing().createChart();
+        shapes.add(chartFrame);
+        return chartFrame;
+    }
+
+    public XSLFChartFrame createChart(final XSLFSimpleShape placeholder) {
+        final List<XSLFShape> shapes = getShapeList();
+        final XSLFChartFrame sh = getDrawing().createChart();
+        applyPlaceholder(sh, placeholder);
+        shapes.add(sh);
+        return sh;
+    }
+
+    private void applyPlaceholder(final XSLFGraphicFrame graphicFrame, final XSLFSimpleShape placeholder) {
+        if (placeholder == null) {
+            return;
+        }
+
+        final CTGraphicalObjectFrame graphicalObjectFrame = graphicFrame.getXmlObject();
+
+        final CTGraphicalObjectFrameNonVisual graphicalObjectFrameNonVisual = graphicalObjectFrame.getNvGraphicFramePr();
+        // Set non visual frame properties
+        graphicalObjectFrameNonVisual.setCNvPr(placeholder.getNvPr());
+
+        // Copy frame position from shape
+        if (placeholder.getSpPr() != null) {
+            graphicalObjectFrame.setXfrm(placeholder.getSpPr().getXfrm());
+        }
+
+        // Remove the placeholder from the slide
+        for (int i = 0; i < getSpTree().sizeOfSpArray(); i++) {
+            if (getSpTree().getSpArray(i).getNvSpPr().getCNvPr().getId() == placeholder.getNvPr().getId()) {
+                getSpTree().removeSp(i);
+                break;
+            }
+        }
     }
 
     /**
@@ -376,6 +429,49 @@ public abstract class XSLFSheet extends POIXMLDocumentPart implements XSLFShapeC
      */
     public abstract XSLFSheet getMasterSheet();
 
+    /**
+     * @param index 0-based index of a placeholder in the sheet
+     * @param clazz  acceptable placeholder type
+     * @return Returns the indexed shape
+     */
+    public <T> T getShape(final int index, final Class<T> clazz) {
+        initPlaceholders();
+
+        int i = 0;
+        for (final XSLFShape shape : _shapes) {
+            if (clazz.isAssignableFrom(shape.getClass())) {
+                // If index matches then return current shape
+                if (i == index) {
+                    return (T) shape;
+                } else {
+                    i++;
+                }
+            }
+        }
+
+        // Not found
+        return null;
+    }
+
+    /**
+     * @param clazz acceptable placeholder type
+     * @return List of shapes
+     */
+    public <T> List<T> getShapes(final Class<T> clazz) {
+        initPlaceholders();
+
+        final List<T> shapes = new ArrayList<T>();
+
+        for (final XSLFShape shape : _shapes) {
+            if (clazz.isAssignableFrom(shape.getClass())) {
+                shapes.add((T) shape);
+            }
+        }
+
+        // Not found
+        return shapes;
+    }
+
     protected XSLFTextShape getTextShapeByType(Placeholder type){
         for(XSLFShape shape : this.getShapes()){
             if(shape instanceof XSLFTextShape) {
@@ -402,9 +498,9 @@ public abstract class XSLFSheet extends POIXMLDocumentPart implements XSLFShapeC
         if(_placeholders == null) {
             _placeholders = new ArrayList<XSLFTextShape>();
             _placeholderByIdMap = new HashMap<Integer, XSLFSimpleShape>();
-            _placeholderByTypeMap = new HashMap<Integer, XSLFSimpleShape>();
+            _placeholderByTypeMap = new HashMap<Integer, List<XSLFSimpleShape>>();
 
-            for(XSLFShape sh : getShapes()){
+            for(XSLFShape sh : getShapeList()){
                 if(sh instanceof XSLFTextShape){
                     XSLFTextShape sShape = (XSLFTextShape)sh;
                     CTPlaceholder ph = sShape.getCTPlaceholder();
@@ -415,7 +511,10 @@ public abstract class XSLFSheet extends POIXMLDocumentPart implements XSLFShapeC
                             _placeholderByIdMap.put(idx, sShape);
                         }
                         if(ph.isSetType()){
-                            _placeholderByTypeMap.put(ph.getType().intValue(), sShape);
+                            if (!_placeholderByTypeMap.containsKey(ph.getType().intValue())) {
+                                _placeholderByTypeMap.put(ph.getType().intValue(), new ArrayList<XSLFSimpleShape>());
+                            }
+                            _placeholderByTypeMap.get(ph.getType().intValue()).add(sShape);
                         }
                     }
                 }
@@ -430,7 +529,7 @@ public abstract class XSLFSheet extends POIXMLDocumentPart implements XSLFShapeC
 
     XSLFSimpleShape getPlaceholderByType(int ordinal) {
         initPlaceholders();
-        return _placeholderByTypeMap.get(ordinal);
+        return _placeholderByTypeMap.containsKey(ordinal) ? _placeholderByTypeMap.get(ordinal).get(0) : null;
     }
 
     /**
@@ -441,6 +540,13 @@ public abstract class XSLFSheet extends POIXMLDocumentPart implements XSLFShapeC
     public XSLFTextShape getPlaceholder(int idx) {
         initPlaceholders();
         return _placeholders.get(idx);
+    }
+
+    public XSLFSimpleShape getPlaceholderByType(final int index, final int type) {
+        initPlaceholders();
+        return _placeholderByTypeMap.containsKey(type) && 0 <= index && index < _placeholderByTypeMap.get(type).size()
+                ? _placeholderByTypeMap.get(type).get(index)
+                : null;
     }
 
     /**

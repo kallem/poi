@@ -84,7 +84,7 @@ public class XSLFGraphicFrame extends XSLFShape {
     }
 
     public void setAnchor(Rectangle2D anchor){
-        CTTransform2D xfrm = _shape.getXfrm();
+        CTTransform2D xfrm = _shape.getXfrm() != null ? _shape.getXfrm() : _shape.addNewXfrm();
         CTPoint2D off = xfrm.isSetOff() ? xfrm.getOff() : xfrm.addNewOff();
         long x = Units.toEMU(anchor.getX());
         long y = Units.toEMU(anchor.getY());
@@ -99,10 +99,12 @@ public class XSLFGraphicFrame extends XSLFShape {
     }
 
 
-    static XSLFGraphicFrame create(CTGraphicalObjectFrame shape, XSLFSheet sheet){
+    static XSLFGraphicFrame create(CTGraphicalObjectFrame shape, XSLFSheet sheet) {
         String uri = shape.getGraphic().getGraphicData().getUri();
-        if(XSLFTable.TABLE_URI.equals(uri)){
+        if (XSLFTable.TABLE_URI.equals(uri)) {
             return new XSLFTable(shape, sheet);
+        } else if (XSLFChartFrame.CHART_URI.equals(uri)) {
+            return new XSLFChartFrame(shape, sheet);
         } else {
             return new XSLFGraphicFrame(shape, sheet);
         }

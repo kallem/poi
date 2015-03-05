@@ -18,11 +18,9 @@
 package org.apache.poi.xslf.usermodel;
 
 import org.apache.xmlbeans.XmlObject;
-import org.openxmlformats.schemas.drawingml.x2006.main.CTBackgroundFillStyleList;
-import org.openxmlformats.schemas.drawingml.x2006.main.CTSchemeColor;
-import org.openxmlformats.schemas.drawingml.x2006.main.CTStyleMatrixReference;
-import org.openxmlformats.schemas.drawingml.x2006.main.CTTransform2D;
+import org.openxmlformats.schemas.drawingml.x2006.main.*;
 import org.openxmlformats.schemas.presentationml.x2006.main.CTBackground;
+import org.openxmlformats.schemas.presentationml.x2006.main.CTBackgroundProperties;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -91,6 +89,77 @@ public class XSLFBackground extends XSLFSimpleShape {
             return (Color)p;
         }
         return null;
+    }
+
+    /**
+     * Specifies a solid color fill. The shape is filled entirely with the
+     * specified color.
+     *
+     * @param color the solid color fill. The value of <code>null</code> unsets
+     *              the solidFIll attribute from the underlying xml
+     */
+    @Override
+    public void setFillColor(Color color) {
+        final CTBackground bg = (CTBackground) getXmlObject();
+
+        // Unset the background reference. It's either properties of reference.
+        if (bg.isSetBgRef()) {
+            bg.unsetBgRef();
+        }
+
+        // Create background properties
+        final CTBackgroundProperties bgPr = bg.isSetBgPr() ? bg.getBgPr() : bg.addNewBgPr();
+
+        if (color == null) {
+            if (bgPr.isSetSolidFill()) {
+                bgPr.unsetSolidFill();
+            }
+
+            if (!bgPr.isSetNoFill()) {
+                bgPr.addNewNoFill();
+            }
+        } else {
+            if (bgPr.isSetNoFill()) {
+                bgPr.unsetNoFill();
+            }
+
+            CTSolidColorFillProperties fill = bgPr.isSetSolidFill() ? bgPr.getSolidFill() : bgPr.addNewSolidFill();
+
+            CTSRgbColor rgb = CTSRgbColor.Factory.newInstance();
+            rgb.setVal(new byte[]{(byte) color.getRed(), (byte) color.getGreen(), (byte) color.getBlue()});
+
+            fill.setSrgbClr(rgb);
+            if (fill.isSetHslClr()) {
+                fill.unsetHslClr();
+            }
+            if (fill.isSetPrstClr()) {
+                fill.unsetPrstClr();
+            }
+            if (fill.isSetSchemeClr()) {
+                fill.unsetSchemeClr();
+            }
+            if (fill.isSetScrgbClr()) {
+                fill.unsetScrgbClr();
+            }
+            if (fill.isSetSysClr()) {
+                fill.unsetSysClr();
+            }
+        }
+    }
+
+    public void setImage(final String id) {
+        final CTBackground bg = (CTBackground) getXmlObject();
+        final CTBackgroundProperties bgPr = bg.isSetBgPr() ? bg.getBgPr() : bg.addNewBgPr();
+        final CTBlipFillProperties blipFillPr = bgPr.isSetBlipFill() ? bgPr.getBlipFill() : bgPr.addNewBlipFill();
+        final CTBlip blip = blipFillPr.isSetBlip() ? blipFillPr.getBlip() : blipFillPr.addNewBlip();
+
+        blip.setEmbed(id);
+
+        // Stretch image to slide
+        CTStretchInfoProperties stretchInfoPr = blipFillPr.isSetStretch() ? blipFillPr.getStretch() : blipFillPr.addNewStretch();
+        if (!stretchInfoPr.isSetFillRect()) {
+            stretchInfoPr.addNewFillRect();
+        }
     }
 
     /**

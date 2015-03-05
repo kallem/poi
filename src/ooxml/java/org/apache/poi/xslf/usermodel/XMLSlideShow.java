@@ -17,21 +17,18 @@
 package org.apache.poi.xslf.usermodel;
 
 import java.awt.Dimension;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.poi.POIXMLDocument;
 import org.apache.poi.POIXMLDocumentPart;
 import org.apache.poi.POIXMLException;
 import org.apache.poi.POIXMLRelation;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.openxml4j.exceptions.OpenXML4JException;
-import org.apache.poi.openxml4j.opc.OPCPackage;
-import org.apache.poi.openxml4j.opc.PackagePart;
-import org.apache.poi.openxml4j.opc.PackagePartName;
-import org.apache.poi.openxml4j.opc.TargetMode;
+import org.apache.poi.openxml4j.opc.*;
 import org.apache.poi.util.Beta;
 import org.apache.poi.util.IOUtils;
 import org.apache.poi.util.Internal;
@@ -70,6 +67,10 @@ public class XMLSlideShow  extends POIXMLDocument {
     private XSLFTableStyles _tableStyles;
     private XSLFNotesMaster _notesMaster;
     private XSLFCommentAuthors _commentAuthors;
+
+    private int slideCount = 1;
+    /// Minimum slide number is 256
+    private int slideNumber = 256;
 
     public XMLSlideShow() {
         this(empty());
@@ -139,13 +140,19 @@ public class XMLSlideShow  extends POIXMLDocument {
 
             _slides = new ArrayList<XSLFSlide>();
             if (_presentation.isSetSldIdLst()) {
-                for (CTSlideIdListEntry slId : _presentation.getSldIdLst().getSldIdArray()) {
+                final List<CTSlideIdListEntry> slideIds = _presentation.getSldIdLst().getSldIdList();
+                for (CTSlideIdListEntry slId : slideIds) {
                     XSLFSlide sh = shIdMap.get(slId.getId2());
                     if (sh == null) {
                         _logger.log(POILogger.WARN, "Slide with r:id " + slId.getId() + " was defined, but didn't exist in package, skipping");
                         continue;
                     }
                     _slides.add(sh);
+                }
+
+                slideCount = slideIds.size() + 1;
+                for (CTSlideIdListEntry slideId : slideIds) {
+                    slideNumber = (int) Math.max(slideId.getId() + 1, slideNumber);
                 }
             }
         } catch (XmlException e) {
@@ -222,8 +229,10 @@ public class XMLSlideShow  extends POIXMLDocument {
         slide.addRelation(layout.getPackageRelationship().getId(), layout);
 
         PackagePartName ppName = layout.getPackagePart().getPartName();
-        slide.getPackagePart().addRelationship(ppName, TargetMode.INTERNAL,
-                layout.getPackageRelationship().getRelationshipType());
+        slide.getPackagePart().addRelationship(ppName,
+                TargetMode.INTERNAL,
+                layout.getPackageRelationship().getRelationshipType(),
+                layout.getPackageRelationship().getId());
 
         _slides.add(slide);
         return slide;
@@ -388,6 +397,7 @@ public class XMLSlideShow  extends POIXMLDocument {
         XSLFSlide slide = _slides.remove(index);
         removeRelation(slide);
          _presentation.getSldIdLst().removeSldId(index);
+        slideCount--;
         return slide;
     }
     
@@ -468,6 +478,79 @@ public class XMLSlideShow  extends POIXMLDocument {
             }
         }
         return null;
+    }
+
+    public PackagePart addPart(final XSLFRelation relation) {
+        final Pattern namePattern = Pattern.compile(relation.getDefaultFileName().replace("#", "([0-9]*)?"));
+
+        final List<PackagePart> parts = getPackage().getPartsByName(namePattern);
+
+        // Collect used indexes
+        final Set<Integer> indexes = new HashSet<Integer>();
+        for (final PackagePart part : parts) {
+            final Matcher m = namePattern.matcher(part.getPartName().getName());
+            if (m.matches()) {
+                indexes.add(Integer.valueOf(m.group(1)));
+            }
+        }
+
+        // Find first free index
+        int index = 0;
+        while (indexes.contains(++index)) ;
+
+        // Create part
+        try {
+            final PackagePartName partName = PackagingURIHelper.createPartName(relation.getFileName(index));
+            return getPackage().createPart(partName, relation.getContentType());
+        } catch (final InvalidFormatException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public PackagePart addPart(final byte[] data, final XSLFRelation relation) {
+        final Pattern namePattern = Pattern.compile(relation.getDefaultFileName().replace("#", "([0-9]*)?"));
+
+        final List<PackagePart> parts = getPackage().getPartsByName(namePattern);
+
+        // Collect used indexes
+        final Set<Integer> indexes = new HashSet<Integer>();
+        for (final PackagePart part : parts) {
+            final Matcher m = namePattern.matcher(part.getPartName().getName());
+            if (m.matches()) {
+                indexes.add(Integer.valueOf(m.group(1)));
+            }
+        }
+
+        // Find first free index
+        int index = 0;
+        while (indexes.contains(++index)) ;
+
+        // Create part
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try {
+            // Write content in the output stream
+            out.write(data);
+            out.flush();
+
+            final PackagePartName partName = PackagingURIHelper.createPartName(relation.getFileName(index));
+            final PackagePart part = getPackage().createPart(partName, relation.getContentType(), out);
+
+            out.close();
+            return part;
+        } catch (final IOException e) {
+            e.printStackTrace();
+            return null;
+        } catch (final InvalidFormatException e) {
+            e.printStackTrace();
+            return null;
+        } finally {
+            try {
+                out.close();
+            } catch (final IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public XSLFTableStyles getTableStyles(){

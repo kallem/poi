@@ -144,7 +144,14 @@ public class XSLFRelation extends POIXMLRelation {
             "application/vnd.openxmlformats-officedocument.drawingml.chart+xml",
             "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart",
             "/ppt/charts/chart#.xml",
-            XSLFChart.class
+            null
+    );
+
+    public static final XSLFRelation EXCEL = new XSLFRelation(
+            "application/vnd.ms-excel",
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/package",
+            "/ppt/embeddings/excel#.xlsx",
+            null
     );
 
     public static final XSLFRelation IMAGE_EMF = new XSLFRelation(

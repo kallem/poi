@@ -46,7 +46,7 @@ import org.openxmlformats.schemas.spreadsheetml.x2006.main.STCellType;
  */
 public class SheetDataWriter {
     private final File _fd;
-    private final Writer _out;
+    private Writer _out;
     private int _rownum;
     private int _numberOfFlushedRows;
     private int _lowestIndexOfFlushedRows; // meaningful only of _numberOfFlushedRows>0
@@ -94,8 +94,14 @@ public class SheetDataWriter {
      * This method <em>must</em> be invoked before calling {@link #getWorksheetXMLInputStream()}
      */
     public void close() throws IOException{
-        _out.flush();
-        _out.close();
+        // Reset out on close. This allows rewrites because content exists
+        // already. Close method is just called in the end and trying to close
+        // out again causes failure.
+        if (_out != null) {
+            _out.flush();
+            _out.close();
+            _out = null;
+        }
     }
 
     File getTempFile(){
@@ -369,7 +375,9 @@ public class SheetDataWriter {
      */
     boolean dispose() {
         try {
-            _out.close();
+            if (_out != null) {
+                _out.close();
+            }
             return _fd.delete();
         } catch (IOException e){
             return false;

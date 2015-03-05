@@ -19,15 +19,10 @@ package org.apache.poi.xslf.usermodel;
 import org.apache.poi.util.Beta;
 import org.apache.xmlbeans.XmlObject;
 import org.openxmlformats.schemas.drawingml.x2006.main.CTNonVisualDrawingProps;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTConnector;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTGraphicalObjectFrame;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTGroupShape;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTPicture;
-import org.openxmlformats.schemas.presentationml.x2006.main.CTShape;
+import org.openxmlformats.schemas.presentationml.x2006.main.*;
 
 import java.awt.Color;
 import java.awt.Rectangle;
-
 
 /**
  * @author Yegor Kozlov
@@ -103,6 +98,14 @@ public class XSLFDrawing {
         CTGraphicalObjectFrame obj = _spTree.addNewGraphicFrame();
         obj.set(XSLFTable.prototype(_shapeId++));
         XSLFTable shape = new XSLFTable(obj, _sheet);
+        shape.setAnchor(new Rectangle());
+        return shape;
+    }
+
+    public XSLFChartFrame createChart(){
+        CTGraphicalObjectFrame obj = _spTree.addNewGraphicFrame();
+        obj.set(XSLFChartFrame.prototype(_shapeId++));
+        XSLFChartFrame shape = new XSLFChartFrame(obj, _sheet);
         shape.setAnchor(new Rectangle());
         return shape;
     }

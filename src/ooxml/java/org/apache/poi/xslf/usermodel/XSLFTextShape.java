@@ -53,10 +53,20 @@ import org.openxmlformats.schemas.presentationml.x2006.main.STPlaceholderType;
 public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<XSLFTextParagraph>{
     private final List<XSLFTextParagraph> _paragraphs;
 
+    private final double DEFAULT_HORIZONTAL_INSET = 7.2;
+    private final double DEFAULT_VERTICAL_INSET = 3.6;
+
     /**
      * whether the text was broken into lines.
      */
     private boolean _isTextBroken;
+
+    private Boolean wordWrap;
+
+    private Double leftInset;
+    private Double rightInset;
+    private Double topInset;
+    private Double bottomInset;
 
     @SuppressWarnings("deprecation")
     /*package*/ XSLFTextShape(XmlObject shape, XSLFSheet sheet) {
@@ -95,12 +105,17 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
         _paragraphs.clear();
         CTTextBody txBody = getTextBody(true);
         txBody.setPArray(null); // remove any existing paragraphs
+        _isTextBroken = false;
     }
 
     public void setText(String text){
         clearText();
 
         addNewTextParagraph().addNewTextRun().setText(text);
+    }
+
+    public int getTextParagraphCount() {
+        return _paragraphs.size();
     }
 
     /**
@@ -121,9 +136,20 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
         CTTextParagraph p = txBody.addNewP();
         XSLFTextParagraph paragraph = new XSLFTextParagraph(p, this);
         _paragraphs.add(paragraph);
+        _isTextBroken = false;
         return paragraph;
     }
 
+    public void removeParagraph(final XSLFTextParagraph paragraph) {
+        // Get the text body
+        final CTTextBody txBody = getTextBody(true);
+
+        final int index = _paragraphs.indexOf(paragraph);
+        txBody.removeP(index);
+        _paragraphs.remove(index);
+
+        _isTextBroken = false;
+    }
 
     /**
      * Sets the type of vertical alignment for the text.
@@ -140,6 +166,8 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
                 bodyPr.setAnchor(STTextAnchoringType.Enum.forInt(anchor.ordinal() + 1));
             }
         }
+
+        _isTextBroken = false;
     }
 
     /**
@@ -198,20 +226,23 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
      *
      * @return the bottom inset in points
      */
-    public double getBottomInset(){
-        PropertyFetcher<Double> fetcher = new TextBodyPropertyFetcher<Double>(){
-            public boolean fetch(CTTextBodyProperties props){
-                if(props.isSetBIns()){
-                    double val = Units.toPoints(props.getBIns());
-                    setValue(val);
-                    return true;
+    public double getBottomInset() {
+        if (bottomInset == null) {
+            PropertyFetcher<Double> fetcher = new TextBodyPropertyFetcher<Double>() {
+                public boolean fetch(CTTextBodyProperties props) {
+                    if (props.isSetBIns()) {
+                        double val = Units.toPoints(props.getBIns());
+                        setValue(val);
+                        return true;
+                    }
+                    return false;
                 }
-                return false;
-            }
-        };
-        fetchShapeProperty(fetcher);
-        // If this attribute is omitted, then a value of 0.05 inches is implied
-        return fetcher.getValue() == null ? 3.6 : fetcher.getValue();
+            };
+            fetchShapeProperty(fetcher);
+            // If this attribute is omitted, then a value of 0.1 inches is implied
+            bottomInset = fetcher.getValue() != null ? fetcher.getValue() : DEFAULT_VERTICAL_INSET;
+        }
+        return bottomInset;
     }
 
     /**
@@ -221,20 +252,23 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
      *
      * @return the left inset in points
      */
-    public double getLeftInset(){
-        PropertyFetcher<Double> fetcher = new TextBodyPropertyFetcher<Double>(){
-            public boolean fetch(CTTextBodyProperties props){
-                if(props.isSetLIns()){
-                    double val = Units.toPoints(props.getLIns());
-                    setValue(val);
-                    return true;
+    public double getLeftInset() {
+        if (leftInset == null) {
+            PropertyFetcher<Double> fetcher = new TextBodyPropertyFetcher<Double>() {
+                public boolean fetch(CTTextBodyProperties props) {
+                    if (props.isSetLIns()) {
+                        double val = Units.toPoints(props.getLIns());
+                        setValue(val);
+                        return true;
+                    }
+                    return false;
                 }
-                return false;
-            }
-        };
-        fetchShapeProperty(fetcher);
-        // If this attribute is omitted, then a value of 0.1 inches is implied
-        return fetcher.getValue() == null ? 7.2 : fetcher.getValue();
+            };
+            fetchShapeProperty(fetcher);
+            // If this attribute is omitted, then a value of 0.1 inches is implied
+            leftInset = fetcher.getValue() != null ? fetcher.getValue() : DEFAULT_HORIZONTAL_INSET;
+        }
+        return leftInset;
     }
 
     /**
@@ -244,20 +278,23 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
      *
      * @return the right inset in points
      */
-    public double getRightInset(){
-        PropertyFetcher<Double> fetcher = new TextBodyPropertyFetcher<Double>(){
-            public boolean fetch(CTTextBodyProperties props){
-                if(props.isSetRIns()){
-                    double val = Units.toPoints(props.getRIns());
-                    setValue(val);
-                    return true;
+    public double getRightInset() {
+        if (rightInset == null) {
+            PropertyFetcher<Double> fetcher = new TextBodyPropertyFetcher<Double>() {
+                public boolean fetch(CTTextBodyProperties props) {
+                    if (props.isSetRIns()) {
+                        double val = Units.toPoints(props.getRIns());
+                        setValue(val);
+                        return true;
+                    }
+                    return false;
                 }
-                return false;
-            }
-        };
-        fetchShapeProperty(fetcher);
-        // If this attribute is omitted, then a value of 0.1 inches is implied
-        return fetcher.getValue() == null ? 7.2 : fetcher.getValue();
+            };
+            fetchShapeProperty(fetcher);
+            // If this attribute is omitted, then a value of 0.1 inches is implied
+            rightInset = fetcher.getValue() != null ? fetcher.getValue() : DEFAULT_HORIZONTAL_INSET;
+        }
+        return rightInset;
     }
 
     /**
@@ -266,20 +303,22 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
      *
      * @return the top inset in points
      */
-    public double getTopInset(){
-        PropertyFetcher<Double> fetcher = new TextBodyPropertyFetcher<Double>(){
-            public boolean fetch(CTTextBodyProperties props){
-                if(props.isSetTIns()){
-                    double val = Units.toPoints(props.getTIns());
-                    setValue(val);
-                    return true;
+    public double getTopInset() {
+        if (topInset == null) {
+            PropertyFetcher<Double> fetcher = new TextBodyPropertyFetcher<Double>() {
+                public boolean fetch(CTTextBodyProperties props) {
+                    if (props.isSetTIns()) {
+                        double val = Units.toPoints(props.getTIns());
+                        setValue(val);
+                        return true;
+                    }
+                    return false;
                 }
-                return false;
-            }
-        };
-        fetchShapeProperty(fetcher);
-        // If this attribute is omitted, then a value of 0.05 inches is implied
-        return fetcher.getValue() == null ? 3.6 : fetcher.getValue();
+            };
+            fetchShapeProperty(fetcher);
+            topInset = fetcher.getValue() != null ? fetcher.getValue() : DEFAULT_VERTICAL_INSET;
+        }
+        return topInset;
     }
 
     /**
@@ -288,12 +327,19 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
      *
      * @param margin    the bottom margin
      */
-    public void setBottomInset(double margin){
+    public void setBottomInset(double margin) {
         CTTextBodyProperties bodyPr = getTextBodyPr();
         if (bodyPr != null) {
-            if(margin == -1) bodyPr.unsetBIns();
-            else bodyPr.setBIns(Units.toEMU(margin));
+            if (margin == -1) {
+                bodyPr.unsetBIns();
+                bottomInset = null;
+            } else {
+                bodyPr.setBIns(Units.toEMU(margin));
+                bottomInset = Units.toPoints(bodyPr.getBIns());
+            }
         }
+
+        _isTextBroken = false;
     }
 
     /**
@@ -305,8 +351,13 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
     public void setLeftInset(double margin){
         CTTextBodyProperties bodyPr = getTextBodyPr();
         if (bodyPr != null) {
-            if(margin == -1) bodyPr.unsetLIns();
-            else bodyPr.setLIns(Units.toEMU(margin));
+            if (margin == -1) {
+                bodyPr.unsetLIns();
+                leftInset = null;
+            } else {
+                bodyPr.setLIns(Units.toEMU(margin));
+                leftInset = Units.toPoints(bodyPr.getLIns());
+            }
         }
     }
 
@@ -319,9 +370,16 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
     public void setRightInset(double margin){
         CTTextBodyProperties bodyPr = getTextBodyPr();
         if (bodyPr != null) {
-            if(margin == -1) bodyPr.unsetRIns();
-            else bodyPr.setRIns(Units.toEMU(margin));
+            if (margin == -1) {
+                bodyPr.unsetRIns();
+                rightInset = null;
+            } else {
+                bodyPr.setRIns(Units.toEMU(margin));
+                rightInset = Units.toPoints(bodyPr.getRIns());
+            }
         }
+
+        _isTextBroken = false;
     }
 
     /**
@@ -333,37 +391,49 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
     public void setTopInset(double margin){
         CTTextBodyProperties bodyPr = getTextBodyPr();
         if (bodyPr != null) {
-            if(margin == -1) bodyPr.unsetTIns();
-            else bodyPr.setTIns(Units.toEMU(margin));
+            if (margin == -1) {
+                bodyPr.unsetTIns();
+                topInset = null;
+            } else {
+                bodyPr.setTIns(Units.toEMU(margin));
+                topInset = Units.toPoints(bodyPr.getTIns());
+            }
         }
+
+        _isTextBroken = false;
     }
 
 
     /**
      * @return whether to wrap words within the bounding rectangle
      */
-    public boolean getWordWrap(){
-        PropertyFetcher<Boolean> fetcher = new TextBodyPropertyFetcher<Boolean>(){
-            public boolean fetch(CTTextBodyProperties props){
-               if(props.isSetWrap()){
-                    setValue(props.getWrap() == STTextWrappingType.SQUARE);
-                    return true;
+    public boolean getWordWrap() {
+        if (wordWrap == null) {
+            PropertyFetcher<Boolean> fetcher = new TextBodyPropertyFetcher<Boolean>() {
+                public boolean fetch(CTTextBodyProperties props) {
+                    if (props.isSetWrap()) {
+                        setValue(props.getWrap() == STTextWrappingType.SQUARE);
+                        return true;
+                    }
+                    return false;
                 }
-                return false;
-            }
-        };
-        fetchShapeProperty(fetcher);
-        return fetcher.getValue() == null ? true : fetcher.getValue();
+            };
+            fetchShapeProperty(fetcher);
+            wordWrap = fetcher.getValue() != null ? fetcher.getValue() : true;
+        }
+        return wordWrap;
     }
 
     /**
      *
      * @param wrap  whether to wrap words within the bounding rectangle
      */
-    public void setWordWrap(boolean wrap){
+    public void setWordWrap(boolean wrap) {
+        wordWrap = wrap;
         CTTextBodyProperties bodyPr = getTextBodyPr();
         if (bodyPr != null) {
             bodyPr.setWrap(wrap ? STTextWrappingType.SQUARE : STTextWrappingType.NONE);
+            _isTextBroken = false;
         }
     }
 
@@ -387,6 +457,8 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
                 case SHAPE: bodyPr.addNewSpAutoFit(); break;
             }
         }
+
+        _isTextBroken = false;
     }
 
     /**
@@ -401,6 +473,46 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
             else if (bodyPr.isSetSpAutoFit()) return TextAutofit.SHAPE;
         }
         return TextAutofit.NORMAL;
+    }
+
+    public int getLineSpaceReduction() {
+        final CTTextBodyProperties textBodyProperties = getTextBodyPr();
+        if (textBodyProperties == null || !textBodyProperties.isSetNormAutofit()) {
+            return 0;
+        }
+
+        return textBodyProperties.getNormAutofit().getLnSpcReduction();
+    }
+
+    public boolean setLineSpaceReduction(final int lineSpaceReduction) {
+        final CTTextBodyProperties textBodyProperties = getTextBodyPr();
+        if (textBodyProperties == null || !textBodyProperties.isSetNormAutofit()) {
+            return false;
+        }
+
+        textBodyProperties.getNormAutofit().setLnSpcReduction(lineSpaceReduction);
+        _isTextBroken = false;
+        return true;
+    }
+
+    public int getFontScale() {
+        final CTTextBodyProperties textBodyProperties = getTextBodyPr();
+        if (textBodyProperties == null || !textBodyProperties.isSetNormAutofit()) {
+            return 100000;
+        }
+
+        return textBodyProperties.getNormAutofit().getFontScale();
+    }
+
+    public boolean setFontScale(final int fontScale) {
+        final CTTextBodyProperties textBodyProperties = getTextBodyPr();
+        if (textBodyProperties == null || !textBodyProperties.isSetNormAutofit()) {
+            return false;
+        }
+
+        textBodyProperties.getNormAutofit().setFontScale(fontScale);
+        _isTextBroken = false;
+        return true;
     }
 
     protected CTTextBodyProperties getTextBodyPr(){
@@ -444,6 +556,8 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
         } else {
             nv.addNewPh().setType(STPlaceholderType.Enum.forInt(placeholder.ordinal() + 1));
         }
+
+        _isTextBroken = false;
     }
 
     /**
@@ -555,19 +669,19 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
      *
      * @return  the vertical advance, i.e. the cumulative space occupied by the text
      */
-    private double drawParagraphs(Graphics2D graphics,  double x, double y) {
+    private double drawParagraphs(Graphics2D graphics, double x, double y) {
         double y0 = y;
-        for(int i = 0; i < _paragraphs.size(); i++){
+        for (int i = 0; i < _paragraphs.size(); i++) {
             XSLFTextParagraph p = _paragraphs.get(i);
             List<TextFragment> lines = p.getTextLines();
 
-            if(i > 0 && lines.size() > 0) {
+            if (i > 0) {
                 // the amount of vertical white space before the paragraph
                 double spaceBefore = p.getSpaceBefore();
-                if(spaceBefore > 0) {
+                if (spaceBefore > 0) {
                     // positive value means percentage spacing of the height of the first line, e.g.
                     // the higher the first line, the bigger the space before the paragraph
-                    y += spaceBefore*0.01*lines.get(0).getHeight();
+                    y += spaceBefore * 0.01 * (!lines.isEmpty() ? lines.get(0).getHeight() : graphics.getFontMetrics().getHeight());
                 } else {
                     // negative value means the absolute spacing in points
                     y += -spaceBefore;
@@ -576,12 +690,12 @@ public abstract class XSLFTextShape extends XSLFSimpleShape implements Iterable<
 
             y += p.draw(graphics, x, y);
 
-            if(i < _paragraphs.size() - 1) {
+            if (i < _paragraphs.size() - 1) {
                 double spaceAfter = p.getSpaceAfter();
-                if(spaceAfter > 0) {
+                if (spaceAfter > 0) {
                     // positive value means percentage spacing of the height of the last line, e.g.
                     // the higher the last line, the bigger the space after the paragraph
-                    y += spaceAfter*0.01*lines.get(lines.size() - 1).getHeight();
+                    y += spaceAfter * 0.01 * lines.get(lines.size() - 1).getHeight();
                 } else {
                     // negative value means the absolute spacing in points
                     y += -spaceAfter;

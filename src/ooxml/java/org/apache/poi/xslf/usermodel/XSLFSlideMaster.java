@@ -116,6 +116,16 @@ import java.util.Map;
         return null;
     }
 
+    public XSLFSlideLayout getLayout(final String name) {
+        for (final XSLFSlideLayout layout : getLayouts().values()) {
+            if (layout.getName().equals(name)) {
+                return layout;
+            }
+        }
+
+        return null;
+    }
+
     @Override
     public XSLFTheme getTheme(){
         if(_theme == null){

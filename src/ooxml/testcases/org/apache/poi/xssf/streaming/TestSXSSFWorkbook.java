@@ -19,24 +19,7 @@
 
 package org.apache.poi.xssf.streaming;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.lang.reflect.Field;
-
-import org.apache.poi.ss.usermodel.BaseTestWorkbook;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellReference;
 import org.apache.poi.xssf.SXSSFITestDataProvider;
 import org.apache.poi.xssf.model.SharedStringsTable;
@@ -44,6 +27,11 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.After;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import java.io.*;
+import java.lang.reflect.Field;
+
+import static org.junit.Assert.*;
 
 public final class TestSXSSFWorkbook extends BaseTestWorkbook {
     public static final SXSSFITestDataProvider _testDataProvider = SXSSFITestDataProvider.instance;
@@ -282,6 +270,23 @@ public final class TestSXSSFWorkbook extends BaseTestWorkbook {
 
         assertTrue(wb.dispose());
 
+    }
+
+    @Test
+    public void testMultiWrite() throws Exception {
+        final SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+        final Sheet sheet = workbook.createSheet();
+        final Row row = sheet.createRow(0);
+        row.createCell(0);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        workbook.write(out);
+        out.close();
+
+        // Writing again should not throw any exceptions
+        out = new ByteArrayOutputStream();
+        workbook.write(out);
+        out.close();
     }
 
     static void assertWorkbookDispose(SXSSFWorkbook wb)

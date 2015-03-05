@@ -187,11 +187,15 @@ public final class XSLFSlide extends XSLFSheet {
     @Override
     public XSLFBackground getBackground() {
         CTBackground bg = _slide.getCSld().getBg();
-        if(bg != null) {
-            return new XSLFBackground(bg, this);
-        } else {
-            return getMasterSheet().getBackground();
+        if (bg == null) {
+            bg = _slide.getCSld().addNewBg();
+            // Copy master sheet background properties
+            if (getMasterSheet().getBackground() != null) {
+                bg.set(getMasterSheet().getBackground().getXmlObject());
+            }
         }
+
+        return new XSLFBackground(bg, this);
     }
 
     /**

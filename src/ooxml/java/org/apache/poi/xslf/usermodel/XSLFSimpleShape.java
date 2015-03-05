@@ -56,6 +56,12 @@ public abstract class XSLFSimpleShape extends XSLFShape {
     private CTNonVisualDrawingProps _nvPr;
     private CTPlaceholder _ph;
 
+    private CTTransform2D xfrm;
+    private Rectangle2D anchor;
+
+    private Long idx;
+    private STPlaceholderType.Enum placeholderType;
+
     /* package */XSLFSimpleShape(XmlObject shape, XSLFSheet sheet) {
         _shape = shape;
         _sheet = sheet;
@@ -148,38 +154,48 @@ public abstract class XSLFSimpleShape extends XSLFShape {
     }
 
     CTTransform2D getXfrm() {
-        PropertyFetcher<CTTransform2D> fetcher = new PropertyFetcher<CTTransform2D>() {
-            public boolean fetch(XSLFSimpleShape shape) {
-                CTShapeProperties pr = shape.getSpPr();
-                if (pr.isSetXfrm()) {
-                    setValue(pr.getXfrm());
-                    return true;
+        if (xfrm == null) {
+            PropertyFetcher<CTTransform2D> fetcher = new PropertyFetcher<CTTransform2D>() {
+                public boolean fetch(XSLFSimpleShape shape) {
+                        CTShapeProperties pr = shape.getSpPr();
+                        if (pr.isSetXfrm()) {
+                            setValue(pr.getXfrm());
+                            return true;
+                        }
+                    return false;
                 }
-                return false;
-            }
-        };
-        fetchShapeProperty(fetcher);
-        return fetcher.getValue();
+            };
+            fetchShapeProperty(fetcher);
+            xfrm = fetcher.getValue();
+        }
+
+        return xfrm;
     }
 
     @Override
     public Rectangle2D getAnchor() {
+        if (anchor == null) {
+            CTTransform2D xfrm = getXfrm();
 
-        CTTransform2D xfrm = getXfrm();
+            CTPoint2D off = xfrm.getOff();
+            long x = off.getX();
+            long y = off.getY();
+            CTPositiveSize2D ext = xfrm.getExt();
+            long cx = ext.getCx();
+            long cy = ext.getCy();
+            anchor = new Rectangle2D.Double(
+                    Units.toPoints(x), Units.toPoints(y),
+                    Units.toPoints(cx), Units.toPoints(cy));
+        }
 
-        CTPoint2D off = xfrm.getOff();
-        long x = off.getX();
-        long y = off.getY();
-        CTPositiveSize2D ext = xfrm.getExt();
-        long cx = ext.getCx();
-        long cy = ext.getCy();
-        return new Rectangle2D.Double(
-                Units.toPoints(x), Units.toPoints(y),
-                Units.toPoints(cx), Units.toPoints(cy));
+        return anchor;
     }
 
     @Override
     public void setAnchor(Rectangle2D anchor) {
+        xfrm = null;
+        this.anchor = anchor;
+
         CTShapeProperties spPr = getSpPr();
         CTTransform2D xfrm = spPr.isSetXfrm() ? spPr.getXfrm() : spPr.addNewXfrm();
         CTPoint2D off = xfrm.isSetOff() ? xfrm.getOff() : xfrm.addNewOff();
@@ -658,7 +674,7 @@ public abstract class XSLFSimpleShape extends XSLFShape {
             String relId = getSheet().importBlip(blipId, s.getSheet().getPackagePart());
             blip.setEmbed(relId);
         }
-        
+
         Color srcLineColor = s.getLineColor();
         Color tgtLineColor = getLineColor();
         if(srcLineColor != null && !srcLineColor.equals(tgtLineColor)) {

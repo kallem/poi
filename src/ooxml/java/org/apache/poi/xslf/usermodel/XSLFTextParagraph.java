@@ -76,6 +76,9 @@ public class XSLFTextParagraph implements Iterable<XSLFTextRun>{
      */
     private double _maxLineHeight;
 
+    private Double spaceBefore;
+    private Double spaceAfter;
+
     XSLFTextParagraph(CTTextParagraph p, XSLFTextShape shape){
         _p = p;
         _runs = new ArrayList<XSLFTextRun>();
@@ -134,6 +137,12 @@ public class XSLFTextParagraph implements Iterable<XSLFTextRun>{
     public Iterator<XSLFTextRun> iterator(){
         return _runs.iterator();
     }
+
+	public void removeTextRun(final XSLFTextRun textRun)
+	{
+		_p.removeR(_runs.indexOf(textRun));
+		_runs.remove(textRun);
+	}
 
     /**
      * Add a new run of text
@@ -539,6 +548,7 @@ public class XSLFTextParagraph implements Iterable<XSLFTextRun>{
      * @param spaceBefore the vertical white space before the paragraph.
      */
     public void setSpaceBefore(double spaceBefore){
+        this.spaceBefore = spaceBefore;
         CTTextParagraphProperties pr = _p.isSetPPr() ? _p.getPPr() : _p.addNewPPr();
         CTTextSpacing spc = CTTextSpacing.Factory.newInstance();
         if(spaceBefore >= 0) spc.addNewSpcPct().setVal((int)(spaceBefore*1000));
@@ -556,23 +566,29 @@ public class XSLFTextParagraph implements Iterable<XSLFTextRun>{
      *
      * @return the vertical white space before the paragraph
      */
-    public double getSpaceBefore(){
-        ParagraphPropertyFetcher<Double> fetcher = new ParagraphPropertyFetcher<Double>(getLevel()){
-            public boolean fetch(CTTextParagraphProperties props){
-                if(props.isSetSpcBef()){
-                    CTTextSpacing spc = props.getSpcBef();
+    public double getSpaceBefore() {
+        if (spaceBefore == null) {
+            ParagraphPropertyFetcher<Double> fetcher = new ParagraphPropertyFetcher<Double>(getLevel()) {
+                public boolean fetch(CTTextParagraphProperties props) {
+                    if (props.isSetSpcBef()) {
+                        CTTextSpacing spc = props.getSpcBef();
 
-                    if(spc.isSetSpcPct()) setValue( spc.getSpcPct().getVal()*0.001 );
-                    else if (spc.isSetSpcPts()) setValue( -spc.getSpcPts().getVal()*0.01 );
-                    return true;
+                        if (spc.isSetSpcPct()) {
+                            setValue(spc.getSpcPct().getVal() * 0.001);
+                        } else if (spc.isSetSpcPts()) {
+                            setValue(-spc.getSpcPts().getVal() * 0.01);
+                        }
+                        return true;
+                    }
+                    return false;
                 }
-                return false;
-            }
-        };
-        fetchParagraphProperty(fetcher);
+            };
+            fetchParagraphProperty(fetcher);
 
-        double spcBef = fetcher.getValue() == null ? 0 : fetcher.getValue();
-        return spcBef;
+            spaceBefore = fetcher.getValue() != null ? fetcher.getValue() : 0;
+        }
+
+        return spaceBefore;
     }
 
     /**
@@ -595,6 +611,7 @@ public class XSLFTextParagraph implements Iterable<XSLFTextRun>{
      * @param spaceAfter the vertical white space after the paragraph.
      */
     public void setSpaceAfter(double spaceAfter){
+        this.spaceAfter = spaceAfter;
         CTTextParagraphProperties pr = _p.isSetPPr() ? _p.getPPr() : _p.addNewPPr();
         CTTextSpacing spc = CTTextSpacing.Factory.newInstance();
         if(spaceAfter >= 0) spc.addNewSpcPct().setVal((int)(spaceAfter*1000));
@@ -612,21 +629,29 @@ public class XSLFTextParagraph implements Iterable<XSLFTextRun>{
      *
      * @return the vertical white space after the paragraph
      */
-    public double getSpaceAfter(){
-        ParagraphPropertyFetcher<Double> fetcher = new ParagraphPropertyFetcher<Double>(getLevel()){
-            public boolean fetch(CTTextParagraphProperties props){
-                if(props.isSetSpcAft()){
-                    CTTextSpacing spc = props.getSpcAft();
+    public double getSpaceAfter() {
+        if (spaceAfter == null) {
+            ParagraphPropertyFetcher<Double> fetcher = new ParagraphPropertyFetcher<Double>(getLevel()) {
+                public boolean fetch(CTTextParagraphProperties props) {
+                    if (props.isSetSpcAft()) {
+                        CTTextSpacing spc = props.getSpcAft();
 
-                    if(spc.isSetSpcPct()) setValue( spc.getSpcPct().getVal()*0.001 );
-                    else if (spc.isSetSpcPts()) setValue( -spc.getSpcPts().getVal()*0.01 );
-                    return true;
+                        if (spc.isSetSpcPct()) {
+                            setValue(spc.getSpcPct().getVal() * 0.001);
+                        } else if (spc.isSetSpcPts()) {
+                            setValue(-spc.getSpcPts().getVal() * 0.01);
+                        }
+                        return true;
+                    }
+                    return false;
                 }
-                return false;
-            }
-        };
-        fetchParagraphProperty(fetcher);
-        return fetcher.getValue() == null ? 0 : fetcher.getValue();
+            };
+
+            fetchParagraphProperty(fetcher);
+            spaceAfter = fetcher.getValue() != null ? fetcher.getValue() : 0;
+        }
+
+        return spaceAfter;
     }
 
     /**
@@ -903,52 +928,64 @@ public class XSLFTextParagraph implements Iterable<XSLFTextRun>{
      * @return array of text fragments,
      * each representing a line of text that fits in the wrapping width
      */
-    List<TextFragment> breakText(Graphics2D graphics){
+    List<TextFragment> breakText(Graphics2D graphics) {
         _lines = new ArrayList<TextFragment>();
 
         // does this paragraph contain text?
         boolean emptyParagraph = _runs.size() == 0;
 
         // ensure that the paragraph contains at least one character
-        if(_runs.size() == 0) ensureNotEmpty();
+        if (_runs.size() == 0) {
+            ensureNotEmpty();
+        }
 
         String text = getRenderableText();
-        if(text.length() == 0) return _lines;
+        if (text.length() == 0) {
+            return _lines;
+        }
 
         AttributedString at = getAttributedString(graphics);
         AttributedCharacterIterator it = at.getIterator();
-        LineBreakMeasurer measurer = new LineBreakMeasurer(it, graphics.getFontRenderContext())  ;
-        for (;;) {
+        LineBreakMeasurer measurer = new LineBreakMeasurer(it, graphics.getFontRenderContext());
+        for (; ; ) {
             int startIndex = measurer.getPosition();
 
             double wrappingWidth = getWrappingWidth(_lines.size() == 0, graphics) + 1; // add a pixel to compensate rounding errors
+            // This is a quess... 1 cm
+            if (isBullet()) {
+                wrappingWidth -= 28.35;
+            }
             // shape width can be smaller that the sum of insets (this was proved by a test file)
-            if(wrappingWidth < 0) wrappingWidth = 1;
-
-            int nextBreak = text.indexOf('\n', startIndex + 1);
-            if(nextBreak == -1) nextBreak = it.getEndIndex();
-
-            TextLayout layout = measurer.nextLayout((float)wrappingWidth, nextBreak, true);
-            if (layout == null) {
-                 // layout can be null if the entire word at the current position
-                 // does not fit within the wrapping width. Try with requireNextWord=false.
-                 layout = measurer.nextLayout((float)wrappingWidth, nextBreak, false);
+            if (wrappingWidth < 0) {
+                wrappingWidth = 1;
             }
 
-            if(layout == null) {
+            int nextBreak = text.indexOf('\n', startIndex + 1);
+            if (nextBreak == -1) {
+                nextBreak = it.getEndIndex();
+            }
+
+            TextLayout layout = measurer.nextLayout((float) wrappingWidth, nextBreak, true);
+            if (layout == null) {
+                // layout can be null if the entire word at the current position
+                // does not fit within the wrapping width. Try with requireNextWord=false.
+                layout = measurer.nextLayout((float) wrappingWidth, nextBreak, false);
+            }
+
+            if (layout == null) {
                 // exit if can't break any more
                 break;
             }
 
             int endIndex = measurer.getPosition();
             // skip over new line breaks (we paint 'clear' text runs not starting or ending with \n)
-            if(endIndex < it.getEndIndex() && text.charAt(endIndex) == '\n'){
+            if (endIndex < it.getEndIndex() && text.charAt(endIndex) == '\n') {
                 measurer.setPosition(endIndex + 1);
             }
 
             TextAlign hAlign = getTextAlign();
-            if(hAlign == TextAlign.JUSTIFY || hAlign == TextAlign.JUSTIFY_LOW) {
-                layout = layout.getJustifiedLayout((float)wrappingWidth);
+            if (hAlign == TextAlign.JUSTIFY || hAlign == TextAlign.JUSTIFY_LOW) {
+                layout = layout.getJustifiedLayout((float) wrappingWidth);
             }
 
             AttributedString str = new AttributedString(it, startIndex, endIndex);
@@ -959,15 +996,19 @@ public class XSLFTextParagraph implements Iterable<XSLFTextRun>{
 
             _maxLineHeight = Math.max(_maxLineHeight, line.getHeight());
 
-            if(endIndex == it.getEndIndex()) break;
+            if (endIndex == it.getEndIndex()) {
+                break;
+            }
 
         }
 
-        if(isBullet() && !emptyParagraph) {
+        if (isBullet() && !emptyParagraph) {
             String buCharacter = getBulletCharacter();
             String buFont = getBulletFont();
-            if(buFont == null) buFont = getTextRuns().get(0).getFontFamily();
-            if(buCharacter != null && buFont != null && _lines.size() > 0) {
+            if (buFont == null) {
+                buFont = getTextRuns().get(0).getFontFamily();
+            }
+            if (buCharacter != null && buFont != null && _lines.size() > 0) {
                 AttributedString str = new AttributedString(buCharacter);
 
                 TextFragment firstLine = _lines.get(0);
@@ -978,10 +1019,13 @@ public class XSLFTextParagraph implements Iterable<XSLFTextRun>{
                         bit.getAttribute(TextAttribute.FOREGROUND) : buColor);
                 str.addAttribute(TextAttribute.FAMILY, buFont);
 
-                float fontSize = (Float)bit.getAttribute(TextAttribute.SIZE);
-                float buSz = (float)getBulletFontSize();
-                if(buSz > 0) fontSize *= buSz* 0.01;
-                else fontSize = -buSz;
+                float fontSize = (Float) bit.getAttribute(TextAttribute.SIZE);
+                float buSz = (float) getBulletFontSize();
+                if (buSz > 0) {
+                    fontSize *= buSz * 0.01;
+                } else {
+                    fontSize = -buSz;
+                }
 
                 str.addAttribute(TextAttribute.SIZE, fontSize);
 
