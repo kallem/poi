@@ -148,7 +148,14 @@ public class XSLFBackground extends XSLFSimpleShape {
     }
 
     public void setImage(final String id) {
+
         final CTBackground bg = (CTBackground) getXmlObject();
+
+        // Unset the background reference. It's either properties of reference.
+        if (bg.isSetBgRef()) {
+            bg.unsetBgRef();
+        }
+
         final CTBackgroundProperties bgPr = bg.isSetBgPr() ? bg.getBgPr() : bg.addNewBgPr();
         final CTBlipFillProperties blipFillPr = bgPr.isSetBlipFill() ? bgPr.getBlipFill() : bgPr.addNewBlipFill();
         final CTBlip blip = blipFillPr.isSetBlip() ? blipFillPr.getBlip() : blipFillPr.addNewBlip();
