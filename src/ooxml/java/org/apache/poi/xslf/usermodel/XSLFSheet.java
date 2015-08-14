@@ -549,6 +549,23 @@ public abstract class XSLFSheet extends POIXMLDocumentPart implements XSLFShapeC
                 : null;
     }
 
+    public XSLFSimpleShape getPlaceholderByType(final String name, final int type) {
+        if (name == null || name.length() == 0) {
+            throw new IllegalArgumentException();
+        }
+
+        initPlaceholders();
+
+        for (final XSLFSimpleShape shape : _placeholderByTypeMap.get(type)) {
+            if (name.equals(shape.getShapeName())) {
+                return shape;
+            }
+        }
+
+        // Placeholder not found
+        return null;
+    }
+
     /**
      *
      * @return all placeholder shapes in this sheet
@@ -556,6 +573,24 @@ public abstract class XSLFSheet extends POIXMLDocumentPart implements XSLFShapeC
     public XSLFTextShape[] getPlaceholders() {
         initPlaceholders();
         return _placeholders.toArray(new XSLFTextShape[_placeholders.size()]);
+    }
+
+    /**
+   	 * @param type acceptable placeholder type
+   	 * @return placeholder
+   	 */
+    public <T> List<T> getPlaceholders(final Class type) {
+        initPlaceholders();
+
+        final List<T> placeHolders = new ArrayList<T>();
+
+        for (final XSLFShape placeholder : _placeholders) {
+            if (type.isAssignableFrom(placeholder.getClass())) {
+                placeHolders.add((T) placeholder);
+            }
+        }
+
+        return placeHolders;
     }
 
     /**
