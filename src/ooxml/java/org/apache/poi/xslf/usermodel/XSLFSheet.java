@@ -252,6 +252,11 @@ public abstract class XSLFSheet extends POIXMLDocumentPart implements XSLFShapeC
                 break;
             }
         }
+
+        // The placeholders need to be reinitialized if needed later on
+        _placeholders = null;
+        _placeholderByIdMap = null;
+        _placeholderByTypeMap = null;
     }
 
     /**
